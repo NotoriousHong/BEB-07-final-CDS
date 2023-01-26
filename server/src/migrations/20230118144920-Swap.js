@@ -24,6 +24,14 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
       },
+      premiumInterval: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
+      totalPremiumRounds: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
       sellerDeposit: {
         type: Sequelize.INTEGER,
         allowNull: true,
@@ -44,9 +52,11 @@ module.exports = {
         type: Sequelize.ENUM(
           'pending',
           'active',
+          'claimable',
           'expired',
           'overdue',
           'liquidated',
+          'inactive',
         ),
         allowNull: false,
       },
@@ -54,9 +64,11 @@ module.exports = {
         type: Sequelize.ENUM(
           'pending',
           'active',
+          'claimable',
           'expired',
           'overdue',
           'liquidated',
+          'inactive',
         ),
         allowNull: false,
       },

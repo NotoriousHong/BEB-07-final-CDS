@@ -2,22 +2,21 @@
 pragma solidity ^0.8.7;
 
 import '../Oracle/PriceConsumer.sol';
-import '../libs/LibSwapCalc.sol';
 import '@openzeppelin/contracts/utils/Counters.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
 contract Swaps is PriceConsumer {
   using Counters for Counters.Counter;
-  using LibSwapCalc for uint256;
+  using SafeMath for uint256;
   Counters.Counter internal _swapId;
 
   enum Status {
     pending,
     active,
-    claimable,
-    overdue,
-    expired,
-    liquidated
+    inactive,
+    closed
   }
+
   mapping(uint256 => Swap) internal _swaps;
 
   struct Buyer {
@@ -36,6 +35,7 @@ contract Swaps is PriceConsumer {
   struct Swap {
     Buyer buyer;
     Seller seller;
+    uint256 initAssetPrice;
     uint256 claimPrice;
     uint256 liquidationPrice;
     uint256 premium;
@@ -44,8 +44,9 @@ contract Swaps is PriceConsumer {
     Status status;
   }
 
-  function _makeSwap(
+  function _createSwap(
     address _addr,
+    uint256 _initAssetPrice,
     uint256 _claimPrice,
     uint256 _liquidationPrice,
     uint256 _sellerDeposit,
@@ -58,7 +59,9 @@ contract Swaps is PriceConsumer {
     Swap storage newSwap = _swaps[newSwapId];
 
     newSwap.buyer.addr = _addr;
+    newSwap.buyer.deposit = _premium.mul(3);
 
+    newSwap.initAssetPrice = _initAssetPrice;
     newSwap.claimPrice = _claimPrice;
     newSwap.liquidationPrice = _liquidationPrice;
     newSwap.premium = _premium;
@@ -70,25 +73,32 @@ contract Swaps is PriceConsumer {
     return newSwapId;
   }
 
-  function _acceptSwap(address _addr, uint256 _acceptedSwapId)
-    internal
-    returns (uint256)
-  {
+  function _acceptSwap(
+    address _addr,
+    uint256 _initAssetPrice,
+    uint256 _acceptedSwapId
+  ) internal returns (uint256) {
     Swap storage aSwap = _swaps[_acceptedSwapId];
+    require(aSwap.status == Status.pending, 'The CDS is not pending state');
 
     aSwap.seller.addr = _addr;
-    // seller deposit 이후
+    aSwap.initAssetPrice = _initAssetPrice;
+
     aSwap.seller.isDeposited = true;
 
-    // buyer deposit 이후
-    uint256 buyerDeposit = aSwap.premium.calcBuyerDepo();
-    aSwap.buyer.deposit = buyerDeposit;
-    // buyer premium 납부 이후
     aSwap.buyer.lastPayDate = block.timestamp;
     aSwap.buyer.nextPayDate = block.timestamp + aSwap.premiumInterval;
 
     aSwap.status = Status.active;
 
     return _acceptedSwapId;
+  }
+
+  function _cancelSwap(uint256 _targetSwapId) internal returns (bool) {
+    Swap storage cSwap = _swaps[_targetSwapId];
+    require(msg.sender == cSwap.buyer.addr, 'Only buyer of the CDS can cancel');
+
+    cSwap.status = Status.inactive;
+    return true;
   }
 }
