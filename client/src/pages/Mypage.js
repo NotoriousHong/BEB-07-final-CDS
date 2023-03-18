@@ -63,7 +63,6 @@ function Mypage() {
     });
   }, []);
 
-  ///////////////////////////////////////////////////
   useEffect(() => {
     if (isMountedGetSwapByAddress.current) {
       const APIdata = getSwapByAddress(userAddress);
@@ -132,7 +131,6 @@ function Mypage() {
     }
   }
 
-  ////////////////////////////////////////////
   // Email post요청을 보냅니다
   useEffect(() => {
     if (isMountedEmail.current) {
